@@ -24,14 +24,20 @@
 # Header values are overridden per submission (--array, --time), so the ones
 # above are only defaults.
 
+# No -e: the best branch inspects the exit status of the python step itself.
 set -uo pipefail
 
 # Must match wildcat_pipeline.py, which reads the same variable. run_stages.sh
 # exports it; the default here covers a hand submission.
 export WILDCAT_OUTDIR="${WILDCAT_OUTDIR:-results_wild}"
 
-source /user/work/gb22703/miniforge3/bin/activate dadi
-cd "${SLURM_SUBMIT_DIR:-.}"
+# conda's activation scripts are not reliably safe under `set -u`.
+set +u
+source "${CONDA_ROOT:-/user/work/gb22703/miniforge3}/etc/profile.d/conda.sh"
+conda activate dadi
+set -u
+
+cd "${SLURM_SUBMIT_DIR:-.}" || exit 1
 mkdir -p logs "${WILDCAT_OUTDIR}"
 
 MODE="${1:?usage: submit_stage.sh fit|best}"
@@ -42,44 +48,44 @@ echo "mode=${MODE} model=${MODEL} round=${ROUND} outdir=${WILDCAT_OUTDIR} host=$
 echo "started: $(date)"
 
 if [ "${MODE}" = "fit" ]; then
-ARGS="--model ${MODEL}"
-ARGS="${ARGS} --task-id ${SLURM_ARRAY_TASK_ID}"
-ARGS="${ARGS} --seed-base ${SEEDBASE}"
-ARGS="${ARGS} --fold ${FOLD}"
-ARGS="${ARGS} --maxiter ${MAXITER}"
-ARGS="${ARGS} --maxeval ${MAXEVAL}"
-ARGS="${ARGS} --ftol ${FTOL}"
-ARGS="${ARGS} --maxtime ${MAXTIME}"
-if [ -n "${STARTFROM:-}" ]; then
-ARGS="${ARGS} --start-from ${STARTFROM}"
-fi
-echo "python wildcat_pipeline.py fit ${ARGS}"
-python wildcat_pipeline.py fit ${ARGS}
+    ARGS=(--model "${MODEL}"
+          --task-id "${SLURM_ARRAY_TASK_ID}"
+          --seed-base "${SEEDBASE}"
+          --fold "${FOLD}"
+          --maxiter "${MAXITER}"
+          --maxeval "${MAXEVAL}"
+          --ftol "${FTOL}"
+          --maxtime "${MAXTIME}")
+    if [ -n "${STARTFROM:-}" ]; then
+        ARGS+=(--start-from "${STARTFROM}")
+    fi
+    echo "python scripts/wildcat_pipeline.py fit ${ARGS[*]}"
+    python scripts/wildcat_pipeline.py fit "${ARGS[@]}"
 
 elif [ "${MODE}" = "best" ]; then
-python wildcat_pipeline.py best --model "${MODEL}" \
---out "${WILDCAT_OUTDIR}/best_${MODEL}_r${ROUND}.json"
-status=$?
-if [ ${status} -ne 0 ]; then
-echo "best failed; leaving pickles in place for inspection"
-exit ${status}
-fi
-mkdir -p "${WILDCAT_OUTDIR}/r${ROUND}"
-# Not silenced: if this matches nothing the next round's gather will pick up
-# this round's pickles as well as its own, and the staging quietly stops
-# meaning anything. Better to see the error in the log.
-n_moved=$(ls ${WILDCAT_OUTDIR}/fit_${MODEL}_task*.pkl 2>/dev/null | wc -l)
-if [ "${n_moved}" -eq 0 ]; then
-echo "WARNING: no ${WILDCAT_OUTDIR}/fit_${MODEL}_task*.pkl to move." >&2
-echo "         round ${ROUND} pickles will be visible to round $((ROUND + 1))." >&2
-else
-mv ${WILDCAT_OUTDIR}/fit_${MODEL}_task*.pkl "${WILDCAT_OUTDIR}/r${ROUND}/"
-echo "moved ${n_moved} round ${ROUND} pickles to ${WILDCAT_OUTDIR}/r${ROUND}/"
-fi
+    python scripts/wildcat_pipeline.py best --model "${MODEL}" \
+        --out "${WILDCAT_OUTDIR}/best_${MODEL}_r${ROUND}.json"
+    status=$?
+    if [ ${status} -ne 0 ]; then
+        echo "best failed; leaving pickles in place for inspection"
+        exit ${status}
+    fi
+    mkdir -p "${WILDCAT_OUTDIR}/r${ROUND}"
+    # Not silenced: if this matches nothing the next round's gather will pick up
+    # this round's pickles as well as its own, and the staging quietly stops
+    # meaning anything. Better to see the error in the log.
+    pickles=("${WILDCAT_OUTDIR}"/fit_"${MODEL}"_task*.pkl)
+    if [ ! -e "${pickles[0]}" ]; then
+        echo "WARNING: no ${WILDCAT_OUTDIR}/fit_${MODEL}_task*.pkl to move." >&2
+        echo "         round ${ROUND} pickles will be visible to round $((ROUND + 1))." >&2
+    else
+        mv "${pickles[@]}" "${WILDCAT_OUTDIR}/r${ROUND}/"
+        echo "moved ${#pickles[@]} round ${ROUND} pickles to ${WILDCAT_OUTDIR}/r${ROUND}/"
+    fi
 
 else
-echo "unknown mode: ${MODE}" >&2
-exit 2
+    echo "unknown mode: ${MODE}" >&2
+    exit 2
 fi
 
 echo "finished: $(date)"

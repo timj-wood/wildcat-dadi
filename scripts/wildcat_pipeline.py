@@ -4,22 +4,22 @@ wildcat_pipeline.py -- fit sec_contact and Dennis's wildcat_domestic models to t
                        same Scottish x domestic JSFS and compare them with CLAIC.
 
 The Scottish population is the 16 WILD-CAUGHT cats only. The 10 captive-bred
-cats are parsed and available as a separate population but are not analysed. 
+cats are parsed and available as a separate population but are not analysed.
 Hudson FST between the two Scottish groups is 0.085, so pooling them was not innocuous.
 
-Results go to results_wild/, NOT results/, so the earlier pooled-sample fits
-survive untouched. Do not compare log-likelihoods across the two directories:
-they are computed from different spectra and are not on the same scale.
+Results go to results_wild/ by default (WILDCAT_OUTDIR overrides it), separate
+from the committed results/ tree. Do not compare log-likelihoods between fits to
+different spectra: they are not on the same scale.
 
-Four stages:
+Four stages, all run from the repository root:
 
-    python wildcat_pipeline.py sfs                     # MSMC -> data.fs + bootstraps  (once, ~5 min)
-    python wildcat_pipeline.py fit --model sec_contact # one restart                   (SLURM array)
-    python wildcat_pipeline.py report                  # CSVs + CLAIC comparison       (once)
-    python wildcat_pipeline.py plot                    # four-panel fit figure         (report does this too)
+    python scripts/wildcat_pipeline.py sfs                     # MSMC -> data.fs + bootstraps  (once, ~5 min)
+    python scripts/wildcat_pipeline.py fit --model sec_contact # one restart                   (SLURM array)
+    python scripts/wildcat_pipeline.py report                  # CSVs + CLAIC comparison       (once)
+    python scripts/wildcat_pipeline.py plot                    # four-panel fit figure         (report does this too)
 
-Run every stage through sbatch -- see submit_sfs.sh, submit.sh, submit_report.sh.
-Nothing here belongs on a login node.
+Run every stage through sbatch -- see submit_sfs.sh, run_stages.sh and
+submit_report.sh in scripts/. Nothing here belongs on a login node.
 
 Everything goes through documented dadi entry points:
 
@@ -58,13 +58,14 @@ import wildcat_models as W
 # CONFIGURATION
 # =============================================================================
 
-INPUT_FILES = ["msmc_input_chr1.txt", "msmc_input_chr2.txt"]
+# Relative to the repository root, like OUTDIR below: every stage is run from there.
+INPUT_FILES = ["data/msmc_input_chr1.txt", "data/msmc_input_chr2.txt"]
 
 # Haplotype positions within column 4 of the MSMC file. 46 diploid cats = 92
 # haplotypes; individual i occupies positions 2i and 2i+1. Verified by PCA and
 # genotype concordance, not taken from the MSMC documentation.
 #
-# Boundaries follow the individual order in cat_orders.docx: 16 Scottish wild,
+# Boundaries follow the individual order in data/cat_orders.txt: 16 Scottish wild,
 # 10 Scottish captive, 6 domestic, 14 European wild. Checked against the data --
 # Hudson FST between columns 0-31 and 32-51 is 0.0850, matching the wild/captive
 # figure measured independently, so the split falls where the file says it does.
@@ -93,11 +94,13 @@ BOOT_SEED = 20260807
 
 GRID_PAD = (10, 20, 30)    # grid = max(sample size) + each of these
 
-# Deliberately NOT "results": that directory holds the pooled-Scottish fits, and
-# stage_report's --use-cached would otherwise pick up claic_*.pkl written against
-# a 53 x 13 spectrum and rank them against 33 x 13 fits. Composite log-likelihoods
-# are not comparable across spectra, so the resulting dCLAIC would be meaningless
-# and would look perfectly reasonable. Separate directory, separate run.
+# Deliberately NOT "results", which holds the committed final outputs. The
+# danger is mixing spectra: stage_report's --use-cached picks up any claic_*.pkl
+# in the output directory, so a cache written against a different spectrum (say
+# the pooled 53 x 13 Scottish sample rather than the wild-only 33 x 13) would be
+# ranked against the current fits. Composite log-likelihoods are not comparable
+# across spectra, so the resulting dCLAIC would be meaningless and would look
+# perfectly reasonable. Separate directory, separate run.
 #
 # Read from the environment so that the submission scripts, which have to build
 # the same paths in shell, cannot drift from this value. Set WILDCAT_OUTDIR in
@@ -784,7 +787,7 @@ def stage_best(args):
     """
     Write the best restart's parameters to JSON, to seed the next staged round.
 
-    gather() only sees results/fit_<model>_task*.pkl, so move each round's
+    gather() only sees OUTDIR/fit_<model>_task*.pkl, so move each round's
     pickles into a subdirectory before submitting the next one; otherwise the
     rounds pool and 'best' reports the best across all of them, which is right
     for the final answer but wrong as a seed for round N+1.
@@ -1153,7 +1156,9 @@ def main():
     sub = ap.add_subparsers(dest="stage", required=True)
 
     p = sub.add_parser("sfs", help="MSMC -> data.fs + block bootstraps")
-    p.add_argument("--input", nargs="+", default=INPUT_FILES)
+    p.add_argument("--input", nargs="+", default=INPUT_FILES,
+                   help="MSMC multihetsep files (default: {})".format(
+                       " ".join(INPUT_FILES)))
     p.add_argument("--nboot", type=int, default=N_BOOT)
     p.add_argument("--chunk", type=int, default=CHUNK_SIZE)
     p.add_argument("--seed", type=int, default=BOOT_SEED)
@@ -1187,7 +1192,7 @@ def main():
                                     "the next staged round")
     p.add_argument("--model", required=True, choices=list(MODELS))
     p.add_argument("--out", default=None,
-                   help="default: results/best_<model>.json")
+                   help="default: <WILDCAT_OUTDIR>/best_<model>.json")
     p.set_defaults(func=stage_best)
 
     p = sub.add_parser("report", help="rescale, write CSVs, compare with CLAIC")

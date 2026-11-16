@@ -12,14 +12,16 @@
 #
 # run_stages.sh -- submit a staged optimisation as a chain of dependent jobs.
 #
-#   sbatch run_stages.sh basic            submit rounds 1-4
-#   sbatch run_stages.sh basic 4          resume at round 4
+# Usage, from the repository root:
+#
+#   sbatch scripts/run_stages.sh basic            submit rounds 1-4
+#   sbatch scripts/run_stages.sh basic 4          resume at round 4
 #
 # The optional second argument is the round to start from. Resuming needs the
 # previous round's JSON to exist already: run the best stage for that round
 # first, with
 #
-#   sbatch --export=ALL,MODEL=basic,ROUND=3 submit_stage.sh best
+#   sbatch --export=ALL,MODEL=basic,ROUND=3 scripts/submit_stage.sh best
 #
 # This is a driver, not a computation: it calls sbatch eight times and exits in
 # about a second. It is written as a job so that nothing has to be run by hand
@@ -42,11 +44,12 @@ export WILDCAT_OUTDIR="${WILDCAT_OUTDIR:-results_wild}"
 if ! command -v sbatch >/dev/null 2>&1; then
     echo "sbatch is not on PATH on this node, so the driver cannot submit the" >&2
     echo "chain from inside a job. Run it on a login node instead:" >&2
-    echo "    bash run_stages.sh ${1:-basic}" >&2
+    echo "    bash scripts/run_stages.sh ${1:-basic}" >&2
     exit 1
 fi
 
-MODEL="${1:-basic}"
+# MODEL is read by submit_stage.sh from the environment, which sbatch forwards.
+export MODEL="${1:-basic}"
 START="${2:-1}"
 NTASK="${NTASK:-50}"
 
@@ -88,46 +91,46 @@ mkdir -p logs "${WILDCAT_OUTDIR}"
 
 echo "model=${MODEL}  tasks/round=${NTASK}  walltime/task=${WALL}"
 echo "outdir=${WILDCAT_OUTDIR}"
-dep=""
+dep=()
 
 for i in 0 1 2 3; do
     r=$((i + 1))
-    if [ ${r} -lt ${START} ]; then
+    if [ "${r}" -lt "${START}" ]; then
         continue
     fi
     start=""
-    if [ ${i} -gt 0 ]; then
+    if [ "${i}" -gt 0 ]; then
         start="${WILDCAT_OUTDIR}/best_${MODEL}_r${i}.json"
-        if [ ${r} -eq ${START} ] && [ ! -f "${start}" ]; then
+        if [ "${r}" -eq "${START}" ] && [ ! -f "${start}" ]; then
             echo "cannot resume at round ${r}: ${start} does not exist." >&2
             echo "run the best stage for round ${i} first:" >&2
-            echo "  sbatch --export=ALL,MODEL=${MODEL},ROUND=${i} submit_stage.sh best" >&2
+            echo "  sbatch --export=ALL,MODEL=${MODEL},ROUND=${i} scripts/submit_stage.sh best" >&2
             exit 1
         fi
     fi
 
-    fit=$(MODEL="${MODEL}" ROUND="${r}" SEEDBASE="${SEEDS[$i]}" \
+    fit=$(ROUND="${r}" SEEDBASE="${SEEDS[$i]}" \
           FOLD="${FOLDS[$i]}" FTOL="${FTOLS[$i]}" MAXITER="${ITERS[$i]}" \
           MAXTIME="${MAXTIMES[$i]}" MAXEVAL="${MAXEVALS[$i]}" STARTFROM="${start}" \
-          sbatch --parsable ${dep} \
+          sbatch --parsable "${dep[@]}" \
                  --job-name="wc_${MODEL}_r${r}" \
-                 --array=1-${NTASK}%${NTASK} \
-                 --time=${WALL} \
-                 submit_stage.sh fit)
+                 --array="1-${NTASK}%${NTASK}" \
+                 --time="${WALL}" \
+                 scripts/submit_stage.sh fit)
     echo "  round ${r} fit  : ${fit}  (fold=${FOLDS[$i]} maxiter=${ITERS[$i]} maxtime=${MAXTIMES[$i]})"
 
     # afterany, not afterok: the point of staging is that the round's best point
     # is worth having even when some restarts failed.
-    bst=$(MODEL="${MODEL}" ROUND="${r}" \
-          sbatch --parsable --dependency=afterany:${fit} \
+    bst=$(ROUND="${r}" \
+          sbatch --parsable --dependency="afterany:${fit}" \
                  --job-name="wc_${MODEL}_r${r}_best" \
                  --time=0:20:00 \
-                 submit_stage.sh best)
+                 scripts/submit_stage.sh best)
     echo "  round ${r} best : ${bst}"
 
     # afterok here, though: without the JSON the next round has nothing to
     # perturb around and would silently restart from P0.
-    dep="--dependency=afterok:${bst}"
+    dep=(--dependency="afterok:${bst}")
 done
 
 echo

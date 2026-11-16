@@ -483,21 +483,22 @@ def load_popt(spec):
     """
     Read best-fit parameters from a JSON file.
 
-    Accepts either ``{"popt": [...]}`` or the shape written by
-    demo_wildcat.py, ``{"fits": [{"popt": [...], "ll": ...}, ...]}``, in which
-    case the fit with the highest log-likelihood is used.
+    Accepts a bare list, ``{"popt": [...]}``, ``{"params": [...]}`` as written
+    by ``wildcat_pipeline.py best``, or ``{"fits": [{"popt": [...], "ll": ...},
+    ...]}``, in which case the fit with the highest log-likelihood is used.
     """
     with open(spec) as fid:
         contents = json.load(fid)
     if isinstance(contents, list):
         return [float(v) for v in contents]
-    if 'popt' in contents:
-        return [float(v) for v in contents['popt']]
+    for key in ('popt', 'params'):
+        if key in contents:
+            return [float(v) for v in contents[key]]
     if 'fits' in contents and contents['fits']:
         best = max(contents['fits'], key=lambda fit: fit['ll'])
         return [float(v) for v in best['popt']]
-    raise ValueError('{}: expected a list, a "popt" key, or a non-empty '
-                     '"fits" list.'.format(spec))
+    raise ValueError('{}: expected a list, a "popt" or "params" key, or a '
+                     'non-empty "fits" list.'.format(spec))
 
 
 class _CollectPopt(argparse.Action):

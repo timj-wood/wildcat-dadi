@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 """
-Reproduce the numbers in Section 2.2 of the report: Table 2 (effect of
-pooling the captive Scottish cats with the wild-caught ones) and the
-nucleotide-diversity comparison between the two Scottish groups.
+Quantify the effect of pooling the captive Scottish cats with the wild-caught
+ones, and compare nucleotide diversity between the two Scottish groups.
 
-Run from the scripts/ directory:
+Run from the repository root:
 
-    python pooling_check.py
+    python scripts/pooling_check.py
 
-It reads the two multihetsep files in ../data via parse_msmc() from
+It reads the two multihetsep files in data/ via parse_msmc() from
 wildcat_pipeline.py and builds four folded joint spectra against the
 domestic sample:
 
@@ -17,18 +16,16 @@ domestic sample:
     pooled, projected    (32, 12)   the (52, 12) spectrum projected down
     captive only         (20, 12)
 
-Nothing here is used by the fitting pipeline; it exists so that every
-figure quoted in Section 2.2 can be regenerated.
+Nothing here is used by the fitting pipeline; it exists so that the decision
+to exclude the captive cats can be checked against the data.
 """
 
-import sys
 import numpy as np
 import dadi
 
-sys.path.insert(0, ".")
 import wildcat_pipeline as wp
 
-INPUTS = ["../data/msmc_input_chr1.txt", "../data/msmc_input_chr2.txt"]
+INPUTS = wp.INPUT_FILES
 INTERMEDIATE_BINS = range(8, 17)   # bins 8-16 of the folded 33-bin Scottish marginal
 
 # parse_msmc() checks that every genotype string has as many characters as

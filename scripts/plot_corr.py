@@ -1,6 +1,8 @@
 """Correlation heatmap from the Godambe matrices already computed for CLAIC.
 
-Usage:  python plot_corr.py [model ...]     (default: all three)
+Usage, from the repository root:
+
+    python scripts/plot_corr.py [model ...]     (default: all three)
 
 Reads results_wild/claic_<model>.pkl, written by `wildcat_pipeline.py report`.
 Computes nothing: H and J come from the pickle, so this is the same sandwich
@@ -10,10 +12,13 @@ Writes results_wild/corr_<model>.pdf and results_wild/corr_<model>.csv, and
 prints three checks: se/value against the stored errors, the strongest pairs,
 and the largest correlation each parameter has with any other.
 
-Tick labels follow the report's notation (N-prefix for basic and growth, nu for
+Tick labels use mathematical notation (N-prefix for basic and growth, nu for
 sec_contact); the printed diagnostics keep the parameter names used in the code.
 """
-import os, pickle, sys
+import os
+import pickle
+import sys
+
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -22,8 +27,8 @@ import wildcat_pipeline as wp
 
 names_wanted = sys.argv[1:] or ["basic", "growth", "sec_contact"]
 
-# Order follows wildcat_models.py, NOT the order the parameters appear in the
-# report's tables: growth puts nuBcurr and nuDcurr fifth and sixth.
+# Order follows wildcat_models.py: growth puts nuBcurr and nuDcurr fifth and
+# sixth, before the times.
 PRETTY = {
     "basic": [r"$N_S$", r"$N_L$", r"$N_B$", r"$N_D$", r"$T_A$", r"$T_B$",
               r"$T_D$", r"$m_{ls}$", r"$m_{sl}$", r"$m_{2,ds}$",

@@ -1,10 +1,8 @@
 """
 Two-population demographic models for Scottish wildcat and domestic cat.
 
-These implement the model drawn in ``scottishwildcats.pdf`` (M. Beaumont), with
-background from Howard-McCombe et al. (2021) Mol Ecol 30:3688-3702.  See
-``wildcat_model_summary.pdf`` for a prose description and for the interpretation
-choices made here.
+These implement the model drawn in ``plots/model.pdf`` (M. Beaumont), with
+background from Howard-McCombe et al. (2021) Mol Ecol 30:3688-3702.
 
 Population 1 is the Scottish wildcat (the *Felis silvestris* lineage), population
 2 is the domestic cat (the *F. lybica* lineage).  The reference population is the
@@ -35,9 +33,7 @@ max(TB, TD) instead, move the ``m12``/``m21`` arguments of the middle
 ``Integration.two_pops`` call to the second-epoch rates.
 
 Two models are defined: ``wildcat_domestic`` (instantaneous size changes, 11
-parameters) and ``wildcat_domestic_growth`` (exponential size changes, 13).  A
-duration-parameterised variant was contemplated at one point and its bounds were
-briefly present in the tables below without a matching function; both are gone.
+parameters) and ``wildcat_domestic_growth`` (exponential size changes, 13).
 Any model added here must have a function, a ``__param_names__``, and one entry
 each in P0, LOWER_BOUNDS and UPPER_BOUNDS, all of the same length.
 """
@@ -261,8 +257,9 @@ def _project_up(params, fixed_params):
 
 # Starting values and bounds.  The defaults below are rough, in the sense that
 # they are meant to put an optimizer in a sensible region rather than to encode
-# strong prior beliefs; see units.py for translating them to and from cats and
-# years.  They assume NA is of order 1e5, so that a 1.4 Myr split at a 3 year
+# strong prior beliefs; see ``rescale`` in wildcat_pipeline.py for translating
+# them to and from cats and years.  They assume NA is of order 1e5, so that a
+# 1.4 Myr split at a 3 year
 # generation time is TA ~ 2, and the Holocene events are TB, TD ~ 1e-2.
 P0 = {
     'wildcat_domestic': [0.5, 2.0, 0.05, 0.5, 2.0, 0.02, 0.02,
