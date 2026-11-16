@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# R
+.Rhistory
+.RData
+
+# Pipeline output (WILDCAT_OUTDIR) and SLURM logs
+results_wild/
+logs/
+*.pkl
+
+# Editors
+*.swp
+*~
