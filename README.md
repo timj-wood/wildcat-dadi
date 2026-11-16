@@ -31,7 +31,7 @@ Fixed constants: callable length L = 22,488,648 bp, µ = 0.86e-8 per bp per gene
 | `basic` | `wildcat_domestic` | 11 |
 | `growth` | `wildcat_domestic_growth` | 13 |
 
-`basic` and `growth` are constrained (TA > max(TB, TD)) and fitted with COBYLA; `sec_contact` uses Nelder-Mead in log space. Full parameterisations are in Table 3 of the report and the [model schematic](plots/model.pdf).
+`basic` and `growth` are constrained (TA > max(TB, TD)) and fitted with COBYLA; `sec_contact` uses Nelder-Mead in log space. Full parameterisations can be found in the [model schematic](plots/model.pdf).
 
 Note that migration subscripts name the receiving population first in `sec_contact` (dadi convention) but the source population first in `basic` and `growth`.
 
