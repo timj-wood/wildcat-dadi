@@ -19,7 +19,7 @@ A SLURM cluster and conda. Create the environment with:
 | Scottish wildcat (wild-caught) | 16 | 0–31 |
 | Domestic | 6 | 52–63 |
 
-Captive Scottish cats (32–51) and mainland European wildcats (64–91) are in the files but excluded. See Section 2.2 of the report for why.
+Captive Scottish cats (32–51) and mainland European wildcats (64–91) are in the files but excluded, due to genetic pooling
 
 Fixed constants: callable length L = 22,488,648 bp, µ = 0.86e-8 per bp per generation, generation time 3 years.
 
